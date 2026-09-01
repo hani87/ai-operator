@@ -1,51 +1,92 @@
-# 🤖 AI Email Operator
+# AI Commitment Operator
 
-An intelligent system that reads emails, understands intent, and automatically executes actions via API calls.  
-Built as the first step toward a "Jarvis" for business automation.
+Een veilige eerste stap richting een AI executive operator. De applicatie analyseert
+e-mails, herkent commitments en deadlines, stelt een vervolgactie voor en plaatst
+die actie in een approval queue. Er wordt nooit automatisch iets extern uitgevoerd.
 
----
+## Huidige pilot
 
-## 🎯 What it does
+- Analyseert handmatig aangeleverde e-mails met OpenAI.
+- Herkent informatie, taken, afspraken, beslissingen en follow-ups.
+- Slaat e-mails, commitments en voorgestelde acties op in SQLite.
+- Ondersteunt menselijke goedkeuring of afwijzing.
+- Houdt beslissingen bij in een audit log.
+- Voorkomt dubbele opslag wanneer een Gmail message ID wordt meegegeven.
 
-- Receives an email (subject + body)
-- AI determines the intent (cancel, return, question, etc.)
-- Extracts structured data (order numbers, dates, etc.)
-- Executes an action via an API call
-- Returns a structured JSON response
-- **NEW:** Stores everything in a database for history tracking
+De bestaande Gmail-scripts staan nog in de repository, maar de Gmail-poller start
+niet automatisch. Daardoor kan lokaal testen geen inboxberichten als gelezen
+markeren.
 
----
+## Installatie
 
-## 🧪 Example
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-**Input (JSON):**
+Maak daarna lokaal een `.env` met minimaal:
+
+```dotenv
+OPENAI_API_KEY=your-key
+OPENAI_MODEL=gpt-4o-mini
+DATABASE_PATH=operator.db
+```
+
+Start de API:
+
+```powershell
+uvicorn main:app --reload
+```
+
+Open vervolgens `http://127.0.0.1:8000/docs` voor de interactieve API.
+
+## Voorbeeld
+
+`POST /analyze-email`
+
 ```json
 {
-  "subject": "Cancellation",
-  "body": "I want to cancel my order 12345"
+  "sender": "jan@example.com",
+  "subject": "Besluit over Project X",
+  "body": "Kun je uiterlijk vrijdag bevestigen of we akkoord gaan?",
+  "gmail_msg_id": "optional-unique-id"
 }
+```
 
+Bekijk de queues via:
+
+- `GET /commitments?status=open`
+- `GET /actions?status=pending_approval`
+
+Keur een actie goed zonder deze al uit te voeren:
+
+`POST /actions/{id}/approve`
+
+```json
 {
-  "intent": "cancel",
-  "order_number": "12345",
-  "action_result": {
-    "order_id": "12345",
-    "status": "cancelled",
-    "message": "Order 12345 successfully cancelled in our test system"
-  }
+  "note": "Voorstel gecontroleerd; concept mag worden voorbereid."
 }
+```
 
-# Clone the repository
-git clone https://github.com/your-username/ai-email-operator.git
-cd ai-email-operator
+Een tweede beslissing over dezelfde actie retourneert HTTP 409. Dit voorkomt dat
+een actie per ongeluk tweemaal wordt behandeld.
 
-# Create virtual environment
-python -m venv venv
+## Testen
 
-# Activate (Windows)
-venv\Scripts\activate
-# Activate (Mac/Linux)
-source venv/bin/activate
+```powershell
+python -m unittest discover -s tests -v
+```
 
-# Install dependencies
-pip install -r requirements.txt
+## Veiligheid
+
+`.env`, `credentials.json`, `token.pickle` en lokale databases worden door Git
+genegeerd. Deel deze bestanden nooit. Als een credential eerder in een publieke
+repository heeft gestaan, trek hem dan in en maak een nieuwe aan.
+
+## Logische volgende stappen
+
+1. Gmail-label `AI-Operator` uitlezen zonder berichten direct als gelezen te markeren.
+2. Een goedgekeurde actie als Gmail-draft uitvoeren, nooit direct verzenden.
+3. Open commitments op deadline bewaken en follow-ups voorstellen.
+4. Een klein dashboard bouwen voor inbox, approvals en open loops.

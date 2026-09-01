@@ -1,6 +1,9 @@
 venv/
 .env
+credentials.json
+token.pickle
 __pycache__/
 *.pyc
 *.db
 .DS_Store
+.pytest_cache/
